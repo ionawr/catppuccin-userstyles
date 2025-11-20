@@ -152,7 +152,7 @@ export async function verifyMetadata(
 }
 
 function generateAssertions(userstyle: string, userstyles: Userstyles) {
-  const prefix = "https://github.com/catppuccin/userstyles";
+  const prefix = "https://github.com/ionawr/catppuccin-userstyles";
   const userstyleData = userstyles[userstyle];
 
   if (!userstyleData) {
@@ -172,7 +172,7 @@ function generateAssertions(userstyle: string, userstyles: Userstyles) {
         ...Object.values(userstyleData.supports ?? {}).map(({ name }) => name),
       ].join("/")
     } Catppuccin`,
-    namespace: `github.com/catppuccin/userstyles/styles/${userstyle}`,
+    namespace: `github.com/ionawr/catppuccin-userstyles/styles/${userstyle}`,
     homepageURL: `${prefix}/tree/main/styles/${userstyle}`,
     description: `Soothing pastel theme for ${
       formatListOfItems([
