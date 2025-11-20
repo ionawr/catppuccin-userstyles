@@ -17,6 +17,8 @@
 
 @import "https://raw.githubusercontent.com/ionawr/catppuccin-userstyles/refs/heads/main/lib/lib.less";
 
+@_urlAccent: if((@accentColor = subtext0), gray, @accentColor);
+
 @-moz-document domain("codeberg.org") {
   @import (css)
     url("https://ionawr.github.io/catppuccin-gitea/theme-catppuccin-light-@{_urlAccent}.css")
