@@ -1,0 +1,102 @@
+name: Sync Fork
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: sync-fork
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: github.repository == 'ionawr/catppuccin-userstyles'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.USERSTYLES_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream and fetch
+        run: |
+          git remote add upstream https://github.com/catppuccin/userstyles.git
+          git fetch upstream main
+
+      - name: Check if update needed
+        id: check
+        run: |
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "up-to-date=true" >> "$GITHUB_OUTPUT"
+            echo "Already up to date with upstream."
+          fi
+
+      - name: Save fork files, reset, and restore
+        if: steps.check.outputs.up-to-date != 'true'
+        run: |
+          # Save fork-specific files
+          mkdir -p /tmp/fork-files/.github
+          cp -r .github/workflows /tmp/fork-files/.github/
+          cp -r .github/patches /tmp/fork-files/.github/
+
+          # Reset to upstream
+          git reset --hard upstream/main
+
+          # Restore fork-specific files
+          cp -r /tmp/fork-files/.github/workflows .github/
+          cp -r /tmp/fork-files/.github/patches .github/
+
+      - name: Patch URLs
+        if: steps.check.outputs.up-to-date != 'true'
+        run: bash .github/patches/urls.sh
+
+      - name: Patch palette and filters
+        if: steps.check.outputs.up-to-date != 'true'
+        run: bash .github/patches/palette.sh
+
+      - name: Patch Codeberg
+        if: steps.check.outputs.up-to-date != 'true'
+        run: bash .github/patches/codeberg.sh
+
+      - name: Validate patches
+        if: steps.check.outputs.up-to-date != 'true'
+        run: bash .github/patches/validate.sh
+
+      - name: Commit and force-push
+        if: steps.check.outputs.up-to-date != 'true'
+        run: |
+          git add -A
+          git commit -m "chore: apply fork patches"
+          git push origin main --force
+
+      - name: Update release tag
+        if: steps.check.outputs.up-to-date != 'true'
+        run: |
+          git tag -f all-userstyles-export HEAD
+          git push origin all-userstyles-export --force
+
+      - name: Setup Deno
+        if: steps.check.outputs.up-to-date != 'true'
+        uses: nekowinston/setup-deno@main
+        with:
+          deno-version: v2.3.5
+
+      - name: Generate Stylus import
+        if: steps.check.outputs.up-to-date != 'true'
+        run: deno task ci:stylus-import
+
+      - name: Upload release artifact
+        if: steps.check.outputs.up-to-date != 'true'
+        run: gh release upload --clobber all-userstyles-export ./dist/import.json --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.USERSTYLES_TOKEN }}
